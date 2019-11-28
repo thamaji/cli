@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+type Author struct {
+	Name  string
+	Email string
+}
+
 type Command struct {
 	Name        string
 	Aliases     []string
@@ -17,8 +22,9 @@ type Command struct {
 	Commands    []*Command
 	Action      func(*Context) error
 
-	Version string
-	NoHelp  bool
+	Copyright string
+	Version   string
+	NoHelp    bool
 }
 
 func (command *Command) Run(args []string, defaultAction func(*Context) error) error {
@@ -27,8 +33,6 @@ func (command *Command) Run(args []string, defaultAction func(*Context) error) e
 
 func (command *Command) run(parent *Context, args []string, defaultAction func(*Context) error) error {
 	args = args[1:]
-
-	keywords := map[string]*Node{}
 
 	if command.Version != "" {
 		command.Options = append(command.Options, &BoolOption{
@@ -46,19 +50,6 @@ func (command *Command) run(parent *Context, args []string, defaultAction func(*
 		})
 	}
 
-	for _, option := range command.Options {
-		for _, keyword := range option.Keywords() {
-			keywords[keyword] = &Node{Type: T_Option, Value: option}
-		}
-	}
-
-	for _, command := range command.Commands {
-		keywords[command.Name] = &Node{Type: T_Command, Value: command}
-		for _, alias := range command.Aliases {
-			keywords[command.Name] = &Node{Type: T_Command, Value: alias}
-		}
-	}
-
 	context := &Context{
 		parent:  parent,
 		command: command,
@@ -66,42 +57,103 @@ func (command *Command) run(parent *Context, args []string, defaultAction func(*
 		args:    []string{},
 	}
 
+	options := map[string]Option{}
 	for _, option := range command.Options {
 		option.SetDefaultValue(context.options)
+
+		for _, keyword := range option.Keywords() {
+			options[keyword] = option
+		}
 	}
 
-	nodes, next := parse(keywords, args)
-	var subcommand *Command
-
 	i := 0
-	for i < len(nodes) {
-		switch nodes[i].Type {
-		case T_Command:
-			subcommand = nodes[i].Value.(*Command)
-			i++
 
-			if len(context.args) > 0 {
-				// sub command の前に arg があったらとりあえずエラーにしておく
-				// そして、sub command は常に最後の node であるはず
-				return errors.New("invalid arguments: " + strings.Join(context.args, " "))
+PARSE_OPTIONS:
+	for i < len(args) {
+		switch {
+		default:
+			break PARSE_OPTIONS
+
+		case args[i] == "--":
+			// end of option list
+			i++
+			break PARSE_OPTIONS
+
+		case len(args[i]) >= 3 && args[i][0:2] == "--":
+			// long option
+
+			if j := strings.Index(args[i], "="); j >= 0 {
+				// --key=value
+				key := args[i][:j]
+				value := args[i][j+1:]
+				i++
+
+				option, ok := options[key]
+				if !ok {
+					return errors.New("unknown option: " + key)
+				}
+
+				if _, err := option.Apply(context.options, value); err != nil {
+					return err
+				}
+
+			} else {
+				// --key value
+				key := args[i]
+				i++
+
+				option, ok := options[key]
+				if !ok {
+					return errors.New("unknown option: " + key)
+				}
+
+				n, err := option.Apply(context.options, args[i:]...)
+				i += n
+				if err != nil {
+					return err
+				}
 			}
 
-		case T_Value:
-			arg := nodes[i].Value.(string)
+		case len(args[i]) >= 2 && args[i][0] == '-':
+			// short option
+			arg := args[i]
 			i++
 
-			context.args = append(context.args, arg)
-
-		case T_Option:
-			Option := nodes[i].Value.(Option)
-			i++
-
-			n, err := Option.Parse(nodes[i:], context.options)
-			if err != nil {
-				return err
+			key := arg[0:2] // key = "-x"
+			option, ok := options[key]
+			if !ok {
+				return errors.New("unknown option: " + key)
 			}
 
-			i += n
+			j := 2
+			for j < len(arg) {
+				key := "-" + string(arg[j])
+
+				next, ok := options[key]
+				if !ok {
+					break
+				}
+
+				if _, err := option.Apply(context.options); err != nil {
+					return err
+				}
+
+				option = next
+				j++
+			}
+
+			if j < len(arg) {
+				if _, err := option.Apply(context.options, arg[j:]); err != nil {
+					return err
+				}
+
+			} else {
+				n, err := option.Apply(context.options, args[i:]...)
+				i += n
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -111,12 +163,24 @@ func (command *Command) run(parent *Context, args []string, defaultAction func(*
 	}
 
 	if !command.NoHelp && context.IsSet("help") {
-		context.ShowHelp(os.Stdout)
-		return nil
+		return context.ShowHelp(os.Stdout)
 	}
 
-	if subcommand != nil {
-		return subcommand.run(context, next, defaultAction)
+	context.args = args[i:]
+
+	// sub command
+	if len(context.args) > 0 {
+		for _, subcommand := range command.Commands {
+			if subcommand.Name == context.args[0] {
+				return subcommand.run(context, context.args, defaultAction)
+			}
+
+			for _, alias := range subcommand.Aliases {
+				if alias == context.args[0] {
+					return subcommand.run(context, context.args, defaultAction)
+				}
+			}
+		}
 	}
 
 	if command.Action == nil {
@@ -136,7 +200,6 @@ func (command *Command) run(parent *Context, args []string, defaultAction func(*
 
 func ShowHelp(out io.Writer) func(*Context) error {
 	return func(context *Context) error {
-		context.ShowHelp(out)
-		return nil
+		return context.ShowHelp(out)
 	}
 }

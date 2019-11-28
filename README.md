@@ -34,7 +34,7 @@ func main() {
 			},
 		},
 		Action: func(ctx *cli.Context) error {
-			if len(ctx.Args()) <= 1 {
+			if len(ctx.Args()) < 1 {
 				return ctx.ShowHelp(os.Stdout)
 			}
 
@@ -79,4 +79,7 @@ OPTIONS:
   -p,--password=string set password
   -v,--version         show version
   -h,--help            show help
+
+VERSION:
+  v1.0.0
 ```

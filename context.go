@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/thamaji/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
@@ -646,7 +647,8 @@ func (context *Context) ShowHelp(out io.Writer) error {
 		fmt.Fprintln(out, "COMMANDS:")
 		tw := tablewriter.New(out)
 		for _, command := range context.command.Commands {
-			tw.Add(" ", command.Name, command.Description)
+			name := strings.Join(append([]string{command.Name}, command.Aliases...), ",")
+			tw.Add(" ", name, command.Description)
 		}
 		tw.Flush()
 	}
@@ -655,11 +657,23 @@ func (context *Context) ShowHelp(out io.Writer) error {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "OPTIONS:")
 		tw := tablewriter.New(out)
-		for _, Option := range context.command.Options {
-			help := Option.Help()
+		for _, option := range context.command.Options {
+			help := option.Help()
 			tw.Add(" ", help[0], help[1])
 		}
 		tw.Flush()
+	}
+
+	if context.command.Copyright != "" {
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "COPYRIGHT:")
+		fmt.Fprintln(out, " ", context.command.Copyright)
+	}
+
+	if context.command.Version != "" {
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "VERSION:")
+		fmt.Fprintln(out, " ", context.command.Version)
 	}
 
 	return nil

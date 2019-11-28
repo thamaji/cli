@@ -8,7 +8,7 @@ import (
 type Option interface {
 	SetDefaultValue(map[string]interface{})
 	Keywords() []string
-	Parse([]*Node, map[string]interface{}) (int, error)
+	Apply(map[string]interface{}, ...string) (int, error)
 	Help() [2]string
 }
 
@@ -37,7 +37,7 @@ func (option *BoolOption) Keywords() []string {
 	return keywords
 }
 
-func (option *BoolOption) Parse(args []*Node, options map[string]interface{}) (int, error) {
+func (option *BoolOption) Apply(options map[string]interface{}, args ...string) (int, error) {
 	options[option.Name] = true
 	return 0, nil
 }
@@ -93,12 +93,12 @@ func (option *StringOption) Keywords() []string {
 	return keywords
 }
 
-func (option *StringOption) Parse(args []*Node, options map[string]interface{}) (int, error) {
-	if len(args) < 1 || args[0].Type != T_Value {
+func (option *StringOption) Apply(options map[string]interface{}, args ...string) (int, error) {
+	if len(args) < 1 || (len(args[0]) >= 2 && args[0][0] == '-') {
 		return 0, errors.New("missing required value: " + option.usage())
 	}
 
-	v := args[0].Value.(string) // .Type == T_Value の .Value は常に string
+	v := args[0]
 	options[option.Name] = v
 	return 1, nil
 }
@@ -170,12 +170,12 @@ func (option *IntOption) Keywords() []string {
 	return keywords
 }
 
-func (option *IntOption) Parse(args []*Node, options map[string]interface{}) (int, error) {
-	if len(args) < 1 || args[0].Type != T_Value {
+func (option *IntOption) Apply(options map[string]interface{}, args ...string) (int, error) {
+	if len(args) < 1 || (len(args[0]) >= 2 && args[0][0] == '-') {
 		return 0, errors.New("missing required value: " + option.usage())
 	}
 
-	v, err := strconv.ParseInt(args[0].Value.(string), 10, 64) // .Type == T_Value の .Value は常に string
+	v, err := strconv.ParseInt(args[0], 10, 64)
 	if err != nil {
 		return 0, err
 	}
@@ -251,12 +251,12 @@ func (option *Int32Option) Keywords() []string {
 	return keywords
 }
 
-func (option *Int32Option) Parse(args []*Node, options map[string]interface{}) (int, error) {
-	if len(args) < 1 || args[0].Type != T_Value {
+func (option *Int32Option) Apply(options map[string]interface{}, args ...string) (int, error) {
+	if len(args) < 1 || (len(args[0]) >= 2 && args[0][0] == '-') {
 		return 0, errors.New("missing required value: " + option.usage())
 	}
 
-	v, err := strconv.ParseInt(args[0].Value.(string), 10, 32) // .Type == T_Value の .Value は常に string
+	v, err := strconv.ParseInt(args[0], 10, 32)
 	if err != nil {
 		return 0, err
 	}
@@ -332,13 +332,12 @@ func (option *Int64Option) Keywords() []string {
 	return keywords
 }
 
-func (option *Int64Option) Parse(args []*Node, options map[string]interface{}) (int, error) {
-	if len(args) < 1 || args[0].Type != T_Value {
-
+func (option *Int64Option) Apply(options map[string]interface{}, args ...string) (int, error) {
+	if len(args) < 1 || (len(args[0]) >= 2 && args[0][0] == '-') {
 		return 0, errors.New("missing required value: " + option.usage())
 	}
 
-	v, err := strconv.ParseInt(args[0].Value.(string), 10, 64) // .Type == T_Value の .Value は常に string
+	v, err := strconv.ParseInt(args[0], 10, 64)
 	if err != nil {
 		return 0, err
 	}
@@ -414,12 +413,12 @@ func (option *Float32Option) Keywords() []string {
 	return keywords
 }
 
-func (option *Float32Option) Parse(args []*Node, options map[string]interface{}) (int, error) {
-	if len(args) < 1 || args[0].Type != T_Value {
+func (option *Float32Option) Apply(options map[string]interface{}, args ...string) (int, error) {
+	if len(args) < 1 || (len(args[0]) >= 2 && args[0][0] == '-') {
 		return 0, errors.New("missing required value: " + option.usage())
 	}
 
-	v, err := strconv.ParseFloat(args[0].Value.(string), 32) // .Type == T_Value の .Value は常に string
+	v, err := strconv.ParseFloat(args[0], 32)
 	if err != nil {
 		return 0, err
 	}
@@ -495,12 +494,12 @@ func (option *Float64Option) Keywords() []string {
 	return keywords
 }
 
-func (option *Float64Option) Parse(args []*Node, options map[string]interface{}) (int, error) {
-	if len(args) < 1 || args[0].Type != T_Value {
+func (option *Float64Option) Apply(options map[string]interface{}, args ...string) (int, error) {
+	if len(args) < 1 || (len(args[0]) >= 2 && args[0][0] == '-') {
 		return 0, errors.New("missing required value: " + option.usage())
 	}
 
-	v, err := strconv.ParseFloat(args[0].Value.(string), 64) // .Type == T_Value の .Value は常に string
+	v, err := strconv.ParseFloat(args[0], 64)
 	if err != nil {
 		return 0, err
 	}
