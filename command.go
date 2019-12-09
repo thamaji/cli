@@ -116,42 +116,35 @@ PARSE_OPTIONS:
 
 		case len(args[i]) >= 2 && args[i][0] == '-':
 			// short option
-			arg := args[i]
+			arg := args[i][1:]
 			i++
 
-			key := arg[0:2] // key = "-x"
-			option, ok := options[key]
-			if !ok {
-				return errors.New("unknown option: " + key)
-			}
-
-			j := 2
-			for j < len(arg) {
+			for j := 0; j < len(arg); j++ {
 				key := "-" + string(arg[j])
 
-				next, ok := options[key]
+				option, ok := options[key]
 				if !ok {
+					return errors.New("unknown option: " + key)
+				}
+
+				if j == len(arg)-1 {
+					n, err := option.Apply(context.options, args[i:]...)
+					if err != nil {
+						return err
+					}
+
+					i += n
+
 					break
 				}
 
-				if _, err := option.Apply(context.options); err != nil {
-					return err
-				}
-
-				option = next
-				j++
-			}
-
-			if j < len(arg) {
-				if _, err := option.Apply(context.options, arg[j:]); err != nil {
-					return err
-				}
-
-			} else {
-				n, err := option.Apply(context.options, args[i:]...)
-				i += n
+				n, err := option.Apply(context.options, arg[j+1:])
 				if err != nil {
 					return err
+				}
+
+				if n > 0 {
+					break
 				}
 			}
 		}
