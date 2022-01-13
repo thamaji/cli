@@ -28,6 +28,9 @@ type Command struct {
 }
 
 func (command *Command) Run(args []string, defaultAction func(*Context) error) error {
+	if defaultAction == nil {
+		defaultAction = ShowHelp(os.Stdout)
+	}
 	return command.run(nil, args, defaultAction)
 }
 
@@ -193,6 +196,9 @@ PARSE_OPTIONS:
 
 func ShowHelp(out io.Writer) func(*Context) error {
 	return func(context *Context) error {
-		return context.ShowHelp(out)
+		if err := context.ShowHelp(out); err != nil {
+			return err
+		}
+		return errors.New("invalid arguments")
 	}
 }

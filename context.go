@@ -1,15 +1,13 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"strconv"
+	"path/filepath"
 	"strings"
 
 	"github.com/thamaji/tablewriter"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 type Context struct {
@@ -22,6 +20,24 @@ type Context struct {
 
 func (context Context) Args() []string {
 	return context.args
+}
+
+func (context Context) UserConfigDir() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, context.Name()), nil
+}
+
+func (context Context) UserCacheDir() (string, error) {
+	dir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, context.Name()), nil
 }
 
 func (context Context) IsSet(name string) bool {
@@ -69,22 +85,7 @@ func (context Context) BoolOrInput(name string) (bool, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return false, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := readline(os.Stdin)
-		if err != nil {
-			return false, err
-		}
-
-		v, err := strconv.ParseBool(ans)
-		if err != nil {
-			return false, err
-		}
-
-		return v, nil
+		return ReadInputBool(name)
 	}
 
 	return context.parent.BoolOrInput(name)
@@ -97,23 +98,7 @@ func (context Context) BoolOrPassword(name string) (bool, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return false, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Fprintln(os.Stdout)
-		if err != nil {
-			return false, err
-		}
-
-		v, err := strconv.ParseBool(string(ans))
-		if err != nil {
-			return false, err
-		}
-
-		return v, nil
+		return ReadPasswordBool(name)
 	}
 
 	return context.parent.BoolOrInput(name)
@@ -152,17 +137,7 @@ func (context Context) StringOrInput(name string) (string, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return "", errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := readline(os.Stdin)
-		if err != nil {
-			return "", err
-		}
-
-		return ans, nil
+		return ReadInputString(name)
 	}
 
 	return context.parent.StringOrInput(name)
@@ -175,18 +150,7 @@ func (context Context) StringOrPassword(name string) (string, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return "", errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Fprintln(os.Stdout)
-		if err != nil {
-			return "", err
-		}
-
-		return string(ans), nil
+		return ReadPasswordString(name)
 	}
 
 	return context.parent.StringOrPassword(name)
@@ -225,22 +189,7 @@ func (context Context) IntOrInput(name string) (int, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return 0, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := readline(os.Stdin)
-		if err != nil {
-			return 0, err
-		}
-
-		v, err := strconv.ParseInt(ans, 10, 64)
-		if err != nil {
-			return 0, err
-		}
-
-		return int(v), nil
+		return ReadInputInt(name)
 	}
 
 	return context.parent.IntOrInput(name)
@@ -253,23 +202,7 @@ func (context Context) IntOrPassword(name string) (int, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return 0, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Fprintln(os.Stdout)
-		if err != nil {
-			return 0, err
-		}
-
-		v, err := strconv.ParseInt(string(ans), 10, 64)
-		if err != nil {
-			return 0, err
-		}
-
-		return int(v), nil
+		return ReadPasswordInt(name)
 	}
 
 	return context.parent.IntOrPassword(name)
@@ -308,22 +241,7 @@ func (context Context) Int32OrInput(name string) (int32, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return 0, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := readline(os.Stdin)
-		if err != nil {
-			return 0, err
-		}
-
-		v, err := strconv.ParseInt(ans, 10, 32)
-		if err != nil {
-			return 0, err
-		}
-
-		return int32(v), nil
+		return ReadInputInt32(name)
 	}
 
 	return context.parent.Int32OrInput(name)
@@ -336,23 +254,7 @@ func (context Context) Int32OrPassword(name string) (int32, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return 0, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Fprintln(os.Stdout)
-		if err != nil {
-			return 0, err
-		}
-
-		v, err := strconv.ParseInt(string(ans), 10, 32)
-		if err != nil {
-			return 0, err
-		}
-
-		return int32(v), nil
+		return ReadPasswordInt32(name)
 	}
 
 	return context.parent.Int32OrPassword(name)
@@ -391,22 +293,7 @@ func (context Context) Int64OrInput(name string) (int64, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return 0, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := readline(os.Stdin)
-		if err != nil {
-			return 0, err
-		}
-
-		v, err := strconv.ParseInt(ans, 10, 64)
-		if err != nil {
-			return 0, err
-		}
-
-		return int64(v), nil
+		return ReadInputInt64(name)
 	}
 
 	return context.parent.Int64OrInput(name)
@@ -419,23 +306,7 @@ func (context Context) Int64OrPassword(name string) (int64, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return 0, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Fprintln(os.Stdout)
-		if err != nil {
-			return 0, err
-		}
-
-		v, err := strconv.ParseInt(string(ans), 10, 64)
-		if err != nil {
-			return 0, err
-		}
-
-		return int64(v), nil
+		return ReadPasswordInt64(name)
 	}
 
 	return context.parent.Int64OrPassword(name)
@@ -474,22 +345,7 @@ func (context Context) Float32OrInput(name string) (float32, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return 0, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := readline(os.Stdin)
-		if err != nil {
-			return 0, err
-		}
-
-		v, err := strconv.ParseFloat(ans, 32)
-		if err != nil {
-			return 0, err
-		}
-
-		return float32(v), nil
+		return ReadInputFloat32(name)
 	}
 
 	return context.parent.Float32OrInput(name)
@@ -502,23 +358,7 @@ func (context Context) Float32OrPassword(name string) (float32, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return 0, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Fprintln(os.Stdout)
-		if err != nil {
-			return 0, err
-		}
-
-		v, err := strconv.ParseFloat(string(ans), 32)
-		if err != nil {
-			return 0, err
-		}
-
-		return float32(v), nil
+		return ReadPasswordFloat32(name)
 	}
 
 	return context.parent.Float32OrPassword(name)
@@ -557,22 +397,7 @@ func (context Context) Float64OrInput(name string) (float64, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return 0, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := readline(os.Stdin)
-		if err != nil {
-			return 0, err
-		}
-
-		v, err := strconv.ParseFloat(ans, 64)
-		if err != nil {
-			return 0, err
-		}
-
-		return float64(v), nil
+		return ReadInputFloat64(name)
 	}
 
 	return context.parent.Float64OrInput(name)
@@ -585,38 +410,22 @@ func (context Context) Float64OrPassword(name string) (float64, error) {
 	}
 
 	if context.parent == nil {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return 0, errors.New("stdin is not a terminal")
-		}
-
-		fmt.Fprint(os.Stdout, name+": ")
-		ans, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Fprintln(os.Stdout)
-		if err != nil {
-			return 0, err
-		}
-
-		v, err := strconv.ParseFloat(string(ans), 64)
-		if err != nil {
-			return 0, err
-		}
-
-		return float64(v), nil
+		return ReadPasswordFloat64(name)
 	}
 
 	return context.parent.Float64OrPassword(name)
 }
 
-func (context *Context) name() string {
+func (context *Context) Name() string {
 	if context.parent == nil {
 		return context.command.Name
 	}
-	return context.parent.name() + " " + context.command.Name
+	return context.parent.Name() + " " + context.command.Name
 }
 
 func (context *Context) ShowHelp(out io.Writer) error {
 	fmt.Fprintln(out, "NAME:")
-	name := context.name()
+	name := context.Name()
 
 	if context.command.Description != "" {
 		name += " - " + context.command.Description
@@ -626,7 +435,7 @@ func (context *Context) ShowHelp(out io.Writer) error {
 
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "USAGE:")
-	usage := context.name()
+	usage := context.Name()
 
 	if len(context.command.Options) > 0 {
 		usage += " [OPTIONS]"
@@ -677,30 +486,4 @@ func (context *Context) ShowHelp(out io.Writer) error {
 	}
 
 	return nil
-}
-
-func readline(r io.Reader) (string, error) {
-	var bytes [1]byte
-	var buf []byte
-
-	for {
-		size, err := r.Read(bytes[:])
-		if size > 0 {
-			switch bytes[0] {
-			case '\n':
-				return string(buf), nil
-			case '\r':
-				// remove \r from passwords on Windows
-			default:
-				buf = append(buf, bytes[0])
-			}
-			continue
-		}
-		if err != nil {
-			if err == io.EOF && len(buf) > 0 {
-				return string(buf), nil
-			}
-			return string(buf), err
-		}
-	}
 }
